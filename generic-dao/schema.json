@@ -1,0 +1,75 @@
+{
+  "name": "disc_golf_tracker",
+  "tables": [
+    {
+      "name": "UsersCourses",
+      "columns": [
+        {
+          "name": "city",
+          "dataType": "varchar",
+          "columnType": "varchar(255)",
+          "isNullable": true,
+          "maxLength": 255,
+          "isPrimary": false,
+          "defaultValue": null
+        },
+        {
+          "name": "createdOn",
+          "dataType": "timestamp",
+          "columnType": "timestamp",
+          "isNullable": false,
+          "maxLength": null,
+          "isPrimary": false,
+          "defaultValue": "CURRENT_TIMESTAMP",
+          "converter": {}
+        },
+        {
+          "name": "name",
+          "dataType": "varchar",
+          "columnType": "varchar(1000)",
+          "isNullable": false,
+          "maxLength": 1000,
+          "isPrimary": false,
+          "defaultValue": null
+        },
+        {
+          "name": "numHoles",
+          "dataType": "int",
+          "columnType": "int(11)",
+          "isNullable": true,
+          "maxLength": null,
+          "isPrimary": false,
+          "defaultValue": null
+        },
+        {
+          "name": "state",
+          "dataType": "varchar",
+          "columnType": "varchar(255)",
+          "isNullable": true,
+          "maxLength": 255,
+          "isPrimary": false,
+          "defaultValue": null
+        },
+        {
+          "name": "userCourseID",
+          "dataType": "int",
+          "columnType": "int(11)",
+          "isNullable": false,
+          "maxLength": null,
+          "isPrimary": true,
+          "defaultValue": null
+        },
+        {
+          "name": "userID",
+          "dataType": "int",
+          "columnType": "int(11)",
+          "isNullable": false,
+          "maxLength": null,
+          "isPrimary": false,
+          "defaultValue": null
+        }
+      ],
+      "alias": "usersCourses"
+    }
+  ]
+}

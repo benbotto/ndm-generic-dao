@@ -1,0 +1,32 @@
+{
+  "name": "ndm-generic-dao",
+  "description": "A generic data-access object for use with node-data-mapper.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Ben Botto"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/benbotto/ndm-generic-dao.git"
+  },
+  "engines": {
+    "node": ">= 6.0.0"
+  },
+  "scripts": {
+    "start": "node ./app"
+  },
+  "dependencies": {
+    "bsy-error": "^1.0.3",
+    "bsy-validation": "^1.0.0",
+    "deferred": "^0.7.5",
+    "glob": "^7.0.6",
+    "insulin": "^1.0.7",
+    "node-data-mapper": "^1.0.18"
+  },
+  "devDependencies": {
+    "grunt": "^1.0.1",
+    "grunt-contrib-jshint": "^1.0.0",
+    "grunt-contrib-watch": "^1.0.0",
+    "grunt-jasmine-nodejs": "^1.5.4"
+  }
+}
