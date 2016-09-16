@@ -23,7 +23,7 @@ describe('GenericDao test suite.', function() {
 
     // Now that the db is mocked, get a reference to the DAO.
     let GenericDao = insulin.get('GenericDao');
-    dao = new GenericDao('UsersCourses');
+    dao = new GenericDao(db.dataContext, 'UsersCourses');
   });
 
   describe('retrieve test suite.', function() {
@@ -137,6 +137,19 @@ describe('GenericDao test suite.', function() {
         .catch(err => expect(err.message).toBe('CUSTOM ERROR'));
     });
   });
+
+  describe('retrieveByID test suite.', function() {
+    it('checks that the where clause and parameters are correct.', function() {
+      spyOn(dao, 'retrieveSingle').and.callFake(function(where, params, onNotFound) {
+        expect(where).toEqual({$eq: {'usersCourses.userCourseID': ':userCourseID'}});
+        expect(params).toEqual({userCourseID: 42});
+        expect(onNotFound().message).toBe('Invalid userCourseID.');
+      });
+
+      dao.retrieveByID(42);
+    });
+  });
+  
 
   describe('isUnique test suite.', function() {
     // Checks a single unique value.

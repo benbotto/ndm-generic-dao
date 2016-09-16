@@ -1,7 +1,7 @@
 'use strict';
 
 require('insulin').factory('GenericDao',
-  function(deferred, db, NotFoundError, DuplicateError, InsertValidator,
+  function(deferred, NotFoundError, DuplicateError, InsertValidator,
     UpdateValidator, ModelValidator) {
     /**
      * Generic data-access object for simple CRUD operations.
@@ -10,11 +10,12 @@ require('insulin').factory('GenericDao',
       /**
        * Initialize the DAO.  Note that the db is expected to be connected
        * before any of this class's methods are used.
+       * @param dataContext A DataContext instance that is used to run queries.
        * @param tableName The name of the table that this DAO operates on.
        */
-      constructor(tableName) {
-        this.table = null;
-        db.then(dc => this.table = dc.getDatabase().getTableByName(tableName));
+      constructor(dataContext, tableName) {
+        this.dc    = dataContext;
+        this.table = this.dc.getDatabase().getTableByName(tableName);
       }
 
       /**
@@ -25,14 +26,14 @@ require('insulin').factory('GenericDao',
        */
       retrieve(where, params) {
         let tblAlias = this.table.getAlias();
-        let query    = db.dataContext.from(this.table.getName());
+        let query    = this.dc.from(this.table.getName());
 
         params = params || {};
 
         if (where)
           query.where(where, params);
 
-        return new ModelValidator(params, tblAlias, db.dataContext.getDatabase())
+        return new ModelValidator(params, tblAlias, this.dc.getDatabase())
           .validate()
           .then(() => query.select().execute())
           .then(res => res[tblAlias]);
@@ -62,6 +63,20 @@ require('insulin').factory('GenericDao',
 
             return res[0];
           });
+      }
+
+      /**
+       * Retrieve a single resource by ID.  Specialized version of retrieveSingle.
+       * @param id The unique identifier of the resource.
+       */
+      retrieveByID(id) {
+        let pkName     = this.table.getPrimaryKey()[0].getName();
+        let fqcn       = `${this.table.getAlias()}.${pkName}`;
+        let where      = {$eq: {[fqcn]: `:${pkName}`}};
+        let params     = {[pkName]: id};
+        let onNotFound = () => new NotFoundError(`Invalid ${pkName}.`);
+
+        return this.retrieveSingle(where, params, onNotFound);
       }
 
       /**
@@ -113,10 +128,10 @@ require('insulin').factory('GenericDao',
       createIf(resource, condition) {
         let tblAlias = this.table.getAlias();
 
-        return new InsertValidator(resource, tblAlias, db.dataContext.getDatabase())
+        return new InsertValidator(resource, tblAlias, this.dc.getDatabase())
           .validate()
           .then(() => condition(resource))
-          .then(() => db.dataContext.insert({[tblAlias]: resource}).execute())
+          .then(() => this.dc.insert({[tblAlias]: resource}).execute())
           .then(() => resource);
       }
 
@@ -147,10 +162,10 @@ require('insulin').factory('GenericDao',
       updateIf(resource, condition) {
         let tblAlias = this.table.getAlias();
 
-        return new UpdateValidator(resource, tblAlias, db.dataContext.getDatabase())
+        return new UpdateValidator(resource, tblAlias, this.dc.getDatabase())
           .validate()
           .then(() => condition(resource))
-          .then(() => db.dataContext.update({[tblAlias]: resource}).execute())
+          .then(() => this.dc.update({[tblAlias]: resource}).execute())
           .then(function(updRes) {
             return updRes.affectedRows === 1 ? resource : deferred.reject(
               new NotFoundError('Resource not found.'));
