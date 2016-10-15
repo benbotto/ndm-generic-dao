@@ -19,13 +19,14 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
       this.table = this.dc.getDatabase().getTableByName(tableName);
     }
 
+    // <<private>>
+
     /**
-     * Retrieve an array of resources.
-     * @param where An optional where condition.
-     * @param params Query parameters for the where condition.
-     * @returns A promise that is resolved with the results as an array.
+     * Private implementation details for retrieve.
+     * @param where See retrieve().
+     * @param params See retrieve().
      */
-    retrieve(where, params) {
+    _retrieve(where, params) {
       const tblAlias = this.table.getAlias();
       const query    = this.dc.from(this.table.getName());
 
@@ -41,18 +42,14 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
     }
 
     /**
-     * Retrieve a single resource as an object.
-     * @param where An optional where condition.
-     * @param params Query parameters for the where condition.
-     * @param onNotFound An optional function that produces an error when
-     *        a resource is not found.
-     * @returns A promise that is resolved with the first matching resource.
-     *          If there are no matches found, then the promise is rejected
-     *          with a NotFoundError instance.
+     * Private implementation details for retrieveSingle.
+     * @param where See retrieveSingle().
+     * @param params See retrieveSingle().
+     * @param onNotFound See retrieveSingle().
      */
-    retrieveSingle(where, params, onNotFound) {
+    _retrieveSingle(where, params, onNotFound) {
       return this
-        .retrieve(where, params)
+        ._retrieve(where, params)
         .then(res => {
           if (res.length === 0) {
             const err = new NotFoundError('Resource not found.');
@@ -67,17 +64,126 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
     }
 
     /**
-     * Retrieve a single resource by ID.  Specialized version of retrieveSingle.
-     * @param id The unique identifier of the resource.
+     * Private implementation details for retrieveByID.
+     * @param id See retrieveByID().
      */
-    retrieveByID(id) {
+    _retrieveByID(id) {
       const pkName     = this.table.getPrimaryKey()[0].getName();
       const fqcn       = `${this.table.getAlias()}.${pkName}`;
       const where      = {$eq: {[fqcn]: `:${pkName}`}};
       const params     = {[pkName]: id};
       const onNotFound = () => new NotFoundError(`Invalid ${pkName}.`);
 
-      return this.retrieveSingle(where, params, onNotFound);
+      return this._retrieveSingle(where, params, onNotFound);
+    }
+
+    /**
+     * Private implementation details for isUnique.
+     * @param where See isUnique().
+     * @param params See isUnique(). 
+     * @param onDupe See isUnique(). 
+     */
+    _isUnique(where, params, onDupe) {
+      return this
+        ._retrieve(where, params)
+        .then(dupe => {
+          if (dupe.length === 0)
+            return deferred.resolve(true);
+
+          // This is the id of the duplicate record.
+          const pkName = this.table.getPrimaryKey()[0].getName();
+          const id     = dupe[0][pkName];
+          const err    = new DuplicateError('Duplicate resource.', null, id);
+
+          if (onDupe)
+            return deferred.reject(onDupe(err));
+          return deferred.reject(err);
+        });
+    }
+
+    /**
+     * Private implementation details for createIf.
+     * @param resource See createIf().
+     * @param condition See createIf().
+     */
+    _createIf(resource, condition) {
+      const tblAlias = this.table.getAlias();
+
+      return new InsertValidator(resource, tblAlias, this.dc.getDatabase())
+        .validate()
+        .then(() => condition(resource))
+        .then(() => this.dc.insert({[tblAlias]: resource}).execute())
+        .then(() => resource);
+    }
+
+    /**
+     * Private implementation details for create().
+     * @param resource See create().
+     */
+    _create(resource) {
+      // Same as createIf with a no-op condition.
+      return this._createIf(resource, () => deferred.resolve());
+    }
+
+    /**
+     * Private implementation details for updateIf.
+     * @param resource See updateIf().
+     * @param condition See updateIf().
+     */
+    _updateIf(resource, condition) {
+      const tblAlias = this.table.getAlias();
+
+      return new UpdateValidator(resource, tblAlias, this.dc.getDatabase())
+        .validate()
+        .then(() => condition(resource))
+        .then(() => this.dc.update({[tblAlias]: resource}).execute())
+        .then(function(updRes) {
+          return updRes.affectedRows === 1 ? resource : deferred.reject(
+            new NotFoundError('Resource not found.'));
+        });
+    }
+
+    /**
+     * Private implementation details for update().
+     * @param resource See update().
+     */
+    _update(resource) {
+      // Same as updateIf with a no-op condition.
+      return this._updateIf(resource, () => deferred.resolve());
+    }
+
+    // <<public>>
+
+    /**
+     * Retrieve an array of resources.
+     * @param where An optional where condition.
+     * @param params Query parameters for the where condition.
+     * @returns A promise that is resolved with the results as an array.
+     */
+    retrieve(where, params) {
+      return this._retrieve(where, params);
+    }
+
+    /**
+     * Retrieve a single resource as an object.
+     * @param where An optional where condition.
+     * @param params Query parameters for the where condition.
+     * @param onNotFound An optional function that produces an error when
+     *        a resource is not found.
+     * @returns A promise that is resolved with the first matching resource.
+     *          If there are no matches found, then the promise is rejected
+     *          with a NotFoundError instance.
+     */
+    retrieveSingle(where, params, onNotFound) {
+      return this._retrieveSingle(where, params, onNotFound);
+    }
+
+    /**
+     * Retrieve a single resource by ID.  Specialized version of retrieveSingle.
+     * @param id The unique identifier of the resource.
+     */
+    retrieveByID(id) {
+      return this._retrieveByID(id);
     }
 
     /**
@@ -94,21 +200,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
      *          the promise is rejected with a DuplicateError instance.
      */
     isUnique(where, params, onDupe) {
-      return this
-        .retrieve(where, params)
-        .then(dupe => {
-          if (dupe.length === 0)
-            return deferred.resolve(true);
-
-          // This is the id of the duplicate record.
-          const pkName = this.table.getPrimaryKey()[0].getName();
-          const id     = dupe[0][pkName];
-          const err    = new DuplicateError('Duplicate resource', null, id);
-
-          if (onDupe)
-            return deferred.reject(onDupe(err));
-          return deferred.reject(err);
-        });
+      return this._isUnique(where, params, onDupe);
     }
 
     /**
@@ -127,13 +219,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
      *          3) Rejected with condition's promise if condition is rejected.
      */
     createIf(resource, condition) {
-      const tblAlias = this.table.getAlias();
-
-      return new InsertValidator(resource, tblAlias, this.dc.getDatabase())
-        .validate()
-        .then(() => condition(resource))
-        .then(() => this.dc.insert({[tblAlias]: resource}).execute())
-        .then(() => resource);
+      return this._createIf(resource, condition);
     }
 
     /**
@@ -142,8 +228,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
      * @param resource A model to create.
      */
     create(resource) {
-      // Same as createIf with a no-op condition.
-      return this.createIf(resource, () => deferred.resolve());
+      return this._create(resource);
     }
 
     /**
@@ -161,16 +246,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
      *          3) Rejected with condition's promise if condition is rejected.
      */
     updateIf(resource, condition) {
-      const tblAlias = this.table.getAlias();
-
-      return new UpdateValidator(resource, tblAlias, this.dc.getDatabase())
-        .validate()
-        .then(() => condition(resource))
-        .then(() => this.dc.update({[tblAlias]: resource}).execute())
-        .then(function(updRes) {
-          return updRes.affectedRows === 1 ? resource : deferred.reject(
-            new NotFoundError('Resource not found.'));
-        });
+      return this._updateIf(resource, condition);
     }
 
     /**
@@ -179,8 +255,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
      * @param resource A model to update by ID.
      */
     update(resource) {
-      // Same as updateIf with a no-op condition.
-      return this.updateIf(resource, () => deferred.resolve());
+      return this._update(resource);
     }
   }
 
