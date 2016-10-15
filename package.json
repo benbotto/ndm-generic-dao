@@ -1,7 +1,7 @@
 {
   "name": "ndm-generic-dao",
   "description": "A generic data-access object for use with node-data-mapper.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": {
     "name": "Ben Botto"
   },
