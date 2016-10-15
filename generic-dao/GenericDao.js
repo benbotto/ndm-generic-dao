@@ -3,7 +3,7 @@
 require('insulin').factory('GenericDao', GenericDaoProducer);
 
 function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValidator,
-  UpdateValidator, ModelValidator) {
+  UpdateValidator, ModelValidator, DeleteValidator) {
   /**
    * Generic data-access object for simple CRUD operations.
    */
@@ -152,6 +152,22 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
       return this._updateIf(resource, () => deferred.resolve());
     }
 
+    /**
+     * Private implementation details for delete().
+     * @param resource See delete().
+     */
+    _delete(resource) {
+      const tblAlias = this.table.getAlias();
+
+      return new DeleteValidator(resource, tblAlias, this.dc.getDatabase())
+        .validate()
+        .then(() => this.dc.delete({[tblAlias]: resource}).execute())
+        .then(function(delRes) {
+          return delRes.affectedRows === 1 ? resource : deferred.reject(
+            new NotFoundError('Resource not found.'));
+        });
+    }
+
     // <<public>>
 
     /**
@@ -256,6 +272,15 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
      */
     update(resource) {
       return this._update(resource);
+    }
+
+    /**
+     * Generic delete method that validates a model using a DeleteValidator
+     * and then deletes it by ID.
+     * @param resource A model to delete by ID.
+     */
+    delete(resource) {
+      return this._delete(resource);
     }
   }
 

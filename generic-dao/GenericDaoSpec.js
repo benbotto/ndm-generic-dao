@@ -27,8 +27,10 @@ describe('GenericDao test suite.', function() {
     dao = new GenericDao(db.dataContext, 'UsersCourses');
   });
 
+  /**
+   * Retrieve.
+   */
   describe('retrieve test suite.', function() {
-    // Checks that a list can be retrieved.
     it('checks that a list can be retrieved.', function() {
       const res = [
         {'usersCourses.userCourseID': 4, 'usersCourses.userID': 3},
@@ -81,8 +83,10 @@ describe('GenericDao test suite.', function() {
     });
   });
 
+  /**
+   * Retrieve single.
+   */
   describe('retrieveSingle test suite.', function() {
-    // Checks that a single resource can be retrieved.
     it('checks that a single resource can be retrieved.', function() {
       const res = [{'usersCourses.userCourseID': 4, 'usersCourses.userID': 3}];
 
@@ -96,7 +100,6 @@ describe('GenericDao test suite.', function() {
         .catch(() => expect(true).toBe(false));
     });
 
-    // Checks that if multiple records are found, only the first is returned.
     it('checks that if multiple records are found, only the first is returned.', function() {
       const res = [
         {'usersCourses.userCourseID': 4, 'usersCourses.userID': 3},
@@ -114,7 +117,6 @@ describe('GenericDao test suite.', function() {
         .catch(() => expect(true).toBe(false));
     });
 
-    // Checks that a NotFoundError is returned when there is no matching record.
     it('checks that a NotFoundError is returned when there is no matching record.', function() {
       pool.query.and.callFake((query, callback) => callback(null, [])); // No records.
       dao
@@ -127,7 +129,6 @@ describe('GenericDao test suite.', function() {
         });
     });
 
-    // Checks that the error can be customized.
     it('checks that the error can be customized.', function() {
       pool.query.and.callFake((query, callback) => callback(null, [])); // No records.
       const onNotFound = () => new NotFoundError('CUSTOM ERROR');
@@ -139,6 +140,9 @@ describe('GenericDao test suite.', function() {
     });
   });
 
+  /**
+   * Retrieve by ID.
+   */
   describe('retrieveByID test suite.', function() {
     it('checks that the where clause and parameters are correct.', function() {
       spyOn(dao, 'retrieveSingle').and.callFake(function(where, params, onNotFound) {
@@ -150,10 +154,11 @@ describe('GenericDao test suite.', function() {
       dao.retrieveByID(42);
     });
   });
-  
 
+  /**
+   * Is unique.
+   */
   describe('isUnique test suite.', function() {
-    // Checks a single unique value.
     it('checks a single unique value.', function() {
       pool.query.and.callFake((query, callback) => callback(null, [])); // No records.
       dao
@@ -162,7 +167,6 @@ describe('GenericDao test suite.', function() {
         .catch(() => expect(true).toBe(false));
     });
 
-    // Checks that a duplicate gets rejected with the correct id.
     it('checks that a duplicate gets rejected with the correct id.', function() {
       const res = [{'usersCourses.userCourseID': 42}];
       pool.query.and.callFake((query, callback) => callback(null, res));
@@ -175,7 +179,6 @@ describe('GenericDao test suite.', function() {
         });
     });
 
-    // Checks that the error can be customized.
     it('checks that the error can be customized.', function() {
       const res    = [{'usersCourses.userCourseID': 42}];
       const onDupe = (err) => new DuplicateError('This name is taken.', 'name', err.id);
@@ -193,8 +196,10 @@ describe('GenericDao test suite.', function() {
     });
   });
 
+  /**
+   * Create if.
+   */
   describe('createIf test suite.', function() {
-    // Checks that an invalid resource is rejected with a ValidationErrorList.
     it('checks that an invalid resource is rejected with a ValidationErrorList.', function() {
       const course = {userID: 3};
       dao.createIf(course) // Condition not called.
@@ -205,7 +210,6 @@ describe('GenericDao test suite.', function() {
         });
     });
 
-    // Checks that if the condition is not met the result is chainable.
     it('checks that if the condition is not met the result is chainable.', function() {
       const course = {userID: 3, name: 'Mackey'};
       const cond   = () => deferred.reject(new Error('FAKE ERROR!'));
@@ -214,7 +218,6 @@ describe('GenericDao test suite.', function() {
         .catch(err => expect(err.message).toBe('FAKE ERROR!'));
     });
 
-    // Checks that if the condition is met the resource is inserted.
     it('checks that if the condition is met the resource is inserted.', function() {
       const course = {userID: 3, name: 'Mackey'};
       const cond   = () => deferred.resolve(true);
@@ -225,7 +228,6 @@ describe('GenericDao test suite.', function() {
         .catch(() => expect(true).toBe(false));
     });
 
-    // Checks the create method which uses a no-op condition.
     it('checks the create method which uses a no-op condition.', function() {
       const course = {userID: 3, name: 'Mackey'};
       spyOn(dao, 'createIf').and.callFake(function(resource, condition) {
@@ -239,8 +241,10 @@ describe('GenericDao test suite.', function() {
     });
   });
 
+  /**
+   * Update if.
+   */
   describe('updateIf test suite.', function() {
-    // Checks that an invalid resource is rejected with a ValidationErrorList.
     it('checks that an invalid resource is rejected with a ValidationErrorList.', function() {
       const course = {userID: 3, name: 'Makey'};
       dao.updateIf(course)
@@ -252,7 +256,6 @@ describe('GenericDao test suite.', function() {
         });
     });
 
-    // Checks that if the condition is not met the result is chainable.
     it('checks that if the condition is not met the result is chainable.', function() {
       const course = {userID: 3, name: 'Mackey', userCourseID: 12};
       const cond   = () => deferred.reject(new Error('FAKE ERROR!'));
@@ -261,7 +264,6 @@ describe('GenericDao test suite.', function() {
         .catch(err => expect(err.message).toBe('FAKE ERROR!'));
     });
 
-    // Checks that if the condition is met the resource is updated.
     it('checks that if the condition is met the resource is updated.', function() {
       const course = {userID: 3, name: 'Mackey', userCourseID: 12};
       const cond   = () => deferred.resolve(true);
@@ -285,7 +287,6 @@ describe('GenericDao test suite.', function() {
         });
     });
 
-    // Checks the update method which uses a no-op condition.
     it('checks the update method which uses a no-op condition.', function() {
       const course = {userID: 3, name: 'Mackey', userCourseID: 12};
 
@@ -297,6 +298,36 @@ describe('GenericDao test suite.', function() {
       });
 
       dao.update(course);
+    });
+  });
+
+  /**
+   * Delete.
+   */
+  describe('delete test suite.', function() {
+    it('checks that an invalid resource is rejected with a ValidationErrorList.', function() {
+      const course = {userID: 'asdf'};
+
+      dao.delete(course)
+        .then(() => expect(true).toBe(false))
+        .catch(function(err) {
+          // ID required on delete.
+          expect(err.code).toBe('VAL_ERROR_LIST');
+          expect(err.errors[0].message).toBe('userCourseID is required.');
+        });
+    });
+
+    it('checks that if the ID is invalid a 404 is returned.', function() {
+      const course = {userID: 3, name: 'Mackey', userCourseID: 12};
+      pool.query.and.callFake((query, callback) => callback(null, {affectedRows: 0}));
+
+      dao
+        .delete(course)
+        .then(() => expect(true).toBe(false))
+        .catch((err) => {
+          expect(err.name).toBe('NotFoundError');
+          expect(err.message).toBe('Resource not found.');
+        });
     });
   });
 });
