@@ -3,13 +3,14 @@ describe('GenericDao test suite.', function() {
 
   require('../bootstrap');
 
-  let insulin        = require('insulin').mock();
-  let deferred       = insulin.get('deferred');
-  let ndm            = insulin.get('ndm');
-  let NotFoundError  = insulin.get('NotFoundError');
-  let DuplicateError = insulin.get('DuplicateError');
-  let database       = new ndm.Database(require('./schema.json'));
-  let db             = {};
+  const insulin        = require('insulin').mock();
+  const deferred       = insulin.get('deferred');
+  const ndm            = insulin.get('ndm');
+  const NotFoundError  = insulin.get('NotFoundError');
+  const DuplicateError = insulin.get('DuplicateError');
+  const database       = new ndm.Database(require('./schema.json'));
+  const db             = {};
+
   let dao, pool;
 
   beforeEach(function() {
@@ -22,19 +23,19 @@ describe('GenericDao test suite.', function() {
     insulin.factory('db', () => db);
 
     // Now that the db is mocked, get a reference to the DAO.
-    let GenericDao = insulin.get('GenericDao');
+    const GenericDao = insulin.get('GenericDao');
     dao = new GenericDao(db.dataContext, 'UsersCourses');
   });
 
   describe('retrieve test suite.', function() {
     // Checks that a list can be retrieved.
     it('checks that a list can be retrieved.', function() {
-      let res = [
+      const res = [
         {'usersCourses.userCourseID': 4, 'usersCourses.userID': 3},
         {'usersCourses.userCourseID': 5, 'usersCourses.userID': 3},
         {'usersCourses.userCourseID': 6, 'usersCourses.userID': 3}
       ];
-      let where = {$eq: {'usersCourses.userID': 3}};
+      const where = {$eq: {'usersCourses.userID': 3}};
 
       pool.query.and.callFake((query, callback) => callback(null, res));
       dao
@@ -49,8 +50,8 @@ describe('GenericDao test suite.', function() {
     });
 
     it('checks that where parameters are validated.', function() {
-      let where  = {$eq: {'usersCourses.userID': ':userID'}};
-      let params = {userID: 'asdf'};
+      const where  = {$eq: {'usersCourses.userID': ':userID'}};
+      const params = {userID: 'asdf'};
 
       dao
         .retrieve(where, params)
@@ -61,16 +62,16 @@ describe('GenericDao test suite.', function() {
     });
 
     it('checks that null is acceptable in a where condition.', function() {
-      let where  = {$is: {'usersCourses.city': ':city'}};
-      let params = {city: null};
+      const where  = {$is: {'usersCourses.city': ':city'}};
+      const params = {city: null};
 
       dao.retrieve(where, params);
       expect(pool.query).toHaveBeenCalled(); // Made it through validation.
     });
 
     it('checks that if non-nullable columns cannot be searched for using null values.', function() {
-      let where  = {$is: {'usersCourses.userID': ':userID'}};
-      let params = {userID: null};
+      const where  = {$is: {'usersCourses.userID': ':userID'}};
+      const params = {userID: null};
 
       dao
         .retrieve(where, params)
@@ -83,7 +84,7 @@ describe('GenericDao test suite.', function() {
   describe('retrieveSingle test suite.', function() {
     // Checks that a single resource can be retrieved.
     it('checks that a single resource can be retrieved.', function() {
-      let res = [{'usersCourses.userCourseID': 4, 'usersCourses.userID': 3}];
+      const res = [{'usersCourses.userCourseID': 4, 'usersCourses.userID': 3}];
 
       pool.query.and.callFake((query, callback) => callback(null, res));
       dao
@@ -97,12 +98,12 @@ describe('GenericDao test suite.', function() {
 
     // Checks that if multiple records are found, only the first is returned.
     it('checks that if multiple records are found, only the first is returned.', function() {
-      let res = [
+      const res = [
         {'usersCourses.userCourseID': 4, 'usersCourses.userID': 3},
         {'usersCourses.userCourseID': 5, 'usersCourses.userID': 3},
         {'usersCourses.userCourseID': 6, 'usersCourses.userID': 3}
       ];
-      let where = {$eq: {'usersCourses.userID': 3}};
+      const where = {$eq: {'usersCourses.userID': 3}};
 
       pool.query.and.callFake((query, callback) => callback(null, res));
       dao
@@ -129,7 +130,7 @@ describe('GenericDao test suite.', function() {
     // Checks that the error can be customized.
     it('checks that the error can be customized.', function() {
       pool.query.and.callFake((query, callback) => callback(null, [])); // No records.
-      let onNotFound = () => new NotFoundError('CUSTOM ERROR');
+      const onNotFound = () => new NotFoundError('CUSTOM ERROR');
 
       dao
         .retrieveSingle({$eq: {'usersCourses.userCourseID': 42}}, null, onNotFound)
@@ -163,7 +164,7 @@ describe('GenericDao test suite.', function() {
 
     // Checks that a duplicate gets rejected with the correct id.
     it('checks that a duplicate gets rejected with the correct id.', function() {
-      let res = [{'usersCourses.userCourseID': 42}];
+      const res = [{'usersCourses.userCourseID': 42}];
       pool.query.and.callFake((query, callback) => callback(null, res));
       dao
         .isUnique({$eq: {'usersCourses.name': ':name'}}, {name: 'Shady Oaks'})
@@ -176,8 +177,8 @@ describe('GenericDao test suite.', function() {
 
     // Checks that the error can be customized.
     it('checks that the error can be customized.', function() {
-      let res    = [{'usersCourses.userCourseID': 42}];
-      let onDupe = (err) => new DuplicateError('This name is taken.', 'name', err.id);
+      const res    = [{'usersCourses.userCourseID': 42}];
+      const onDupe = (err) => new DuplicateError('This name is taken.', 'name', err.id);
 
       pool.query.and.callFake((query, callback) => callback(null, res));
       dao
@@ -195,7 +196,7 @@ describe('GenericDao test suite.', function() {
   describe('createIf test suite.', function() {
     // Checks that an invalid resource is rejected with a ValidationErrorList.
     it('checks that an invalid resource is rejected with a ValidationErrorList.', function() {
-      let course = {userID: 3};
+      const course = {userID: 3};
       dao.createIf(course) // Condition not called.
         .then(() => expect(true).toBe(false))
         .catch(function(err) {
@@ -206,8 +207,8 @@ describe('GenericDao test suite.', function() {
 
     // Checks that if the condition is not met the result is chainable.
     it('checks that if the condition is not met the result is chainable.', function() {
-      let course = {userID: 3, name: 'Mackey'};
-      let cond   = () => deferred.reject(new Error('FAKE ERROR!'));
+      const course = {userID: 3, name: 'Mackey'};
+      const cond   = () => deferred.reject(new Error('FAKE ERROR!'));
       dao.createIf(course, cond)
         .then(() => expect(true).toBe(false))
         .catch(err => expect(err.message).toBe('FAKE ERROR!'));
@@ -215,8 +216,8 @@ describe('GenericDao test suite.', function() {
 
     // Checks that if the condition is met the resource is inserted.
     it('checks that if the condition is met the resource is inserted.', function() {
-      let course = {userID: 3, name: 'Mackey'};
-      let cond   = () => deferred.resolve(true);
+      const course = {userID: 3, name: 'Mackey'};
+      const cond   = () => deferred.resolve(true);
       pool.query.and.callFake((query, callback) => callback(null, {insertId: 42}));
       dao
         .createIf(course, cond)
@@ -226,7 +227,7 @@ describe('GenericDao test suite.', function() {
 
     // Checks the create method which uses a no-op condition.
     it('checks the create method which uses a no-op condition.', function() {
-      let course = {userID: 3, name: 'Mackey'};
+      const course = {userID: 3, name: 'Mackey'};
       spyOn(dao, 'createIf').and.callFake(function(resource, condition) {
         expect(resource).toBe(course);
         condition()
@@ -241,7 +242,7 @@ describe('GenericDao test suite.', function() {
   describe('updateIf test suite.', function() {
     // Checks that an invalid resource is rejected with a ValidationErrorList.
     it('checks that an invalid resource is rejected with a ValidationErrorList.', function() {
-      let course = {userID: 3, name: 'Makey'};
+      const course = {userID: 3, name: 'Makey'};
       dao.updateIf(course)
         .then(() => expect(true).toBe(false))
         .catch(function(err) {
@@ -253,8 +254,8 @@ describe('GenericDao test suite.', function() {
 
     // Checks that if the condition is not met the result is chainable.
     it('checks that if the condition is not met the result is chainable.', function() {
-      let course = {userID: 3, name: 'Mackey', userCourseID: 12};
-      let cond   = () => deferred.reject(new Error('FAKE ERROR!'));
+      const course = {userID: 3, name: 'Mackey', userCourseID: 12};
+      const cond   = () => deferred.reject(new Error('FAKE ERROR!'));
       dao.updateIf(course, cond)
         .then(() => expect(true).toBe(false))
         .catch(err => expect(err.message).toBe('FAKE ERROR!'));
@@ -262,8 +263,8 @@ describe('GenericDao test suite.', function() {
 
     // Checks that if the condition is met the resource is updated.
     it('checks that if the condition is met the resource is updated.', function() {
-      let course = {userID: 3, name: 'Mackey', userCourseID: 12};
-      let cond   = () => deferred.resolve(true);
+      const course = {userID: 3, name: 'Mackey', userCourseID: 12};
+      const cond   = () => deferred.resolve(true);
       pool.query.and.callFake((query, callback) => callback(null, {affectedRows: 1}));
       dao
         .updateIf(course, cond)
@@ -272,8 +273,8 @@ describe('GenericDao test suite.', function() {
     });
 
     it('checks that if the ID is invalid a 404 is returned.', function() {
-      let course = {userID: 3, name: 'Mackey', userCourseID: 12};
-      let cond   = () => deferred.resolve(true);
+      const course = {userID: 3, name: 'Mackey', userCourseID: 12};
+      const cond   = () => deferred.resolve(true);
       pool.query.and.callFake((query, callback) => callback(null, {affectedRows: 0}));
       dao
         .updateIf(course, cond)
@@ -286,7 +287,7 @@ describe('GenericDao test suite.', function() {
 
     // Checks the update method which uses a no-op condition.
     it('checks the update method which uses a no-op condition.', function() {
-      let course = {userID: 3, name: 'Mackey', userCourseID: 12};
+      const course = {userID: 3, name: 'Mackey', userCourseID: 12};
 
       spyOn(dao, 'updateIf').and.callFake(function(resource, condition) {
         expect(resource).toBe(course);
