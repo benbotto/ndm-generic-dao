@@ -179,13 +179,13 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
       const pTblAlias = pTbl.getAlias();
       const pPKName   = pTbl.getPrimaryKey()[0].getName();
       const pPKAlias  = pTbl.getPrimaryKey()[0].getAlias();
-      const parent    = {[pPKName]: parentID};
+      const parent    = {[pPKAlias]: parentID};
 
       const tblAlias  = this.table.getAlias();
       const pkAlias   = this.table.getPrimaryKey()[0].getAlias();
       const fkName    = this.table.getColumnByName(pPKName).getName();
       const fkAlias   = this.table.getColumnByName(pPKName).getAlias();
-      const fqFKName  = `${this.table.getAlias()}.${fkName}`;
+      const fqFKName  = `${tblAlias}.${fkName}`;
 
       // 1) Validate the parentID.
       // 2) Set/overwrite the parentID on each resource, and remove any resouce
