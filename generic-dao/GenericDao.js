@@ -168,10 +168,62 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
         });
     }
 
+    /**
+     * Private implementation details for replace().
+     * @param parentTableName See replace().
+     * @param parentID See replace().
+     * @param resources See replace().
+     */
+    _replace(parentTableName, parentID, resources) {
+      const pTbl      = this.dc.getDatabase().getTableByName(parentTableName);
+      const pTblAlias = pTbl.getAlias();
+      const pPKName   = pTbl.getPrimaryKey()[0].getName();
+      const pPKAlias  = pTbl.getPrimaryKey()[0].getAlias();
+      const parent    = {[pPKName]: parentID};
+
+      const tblAlias  = this.table.getAlias();
+      const pkAlias   = this.table.getPrimaryKey()[0].getAlias();
+      const fkName    = this.table.getColumnByName(pPKName).getName();
+      const fkAlias   = this.table.getColumnByName(pPKName).getAlias();
+      const fqFKName  = `${this.table.getAlias()}.${fkName}`;
+
+      // 1) Validate the parentID.
+      // 2) Set/overwrite the parentID on each resource, and remove any resouce
+      //    identifiers.
+      // 3) Validate each resource.
+      // 4) Delete the old resources.
+      // 5) Insert the new resources.
+      return new DeleteValidator(parent, pTblAlias, this.dc.getDatabase())
+        .validate()
+        .then(() => {
+          resources.forEach(r => {
+            r[fkAlias] = parentID;
+            delete r[pkAlias];
+          });
+
+          return deferred.map(resources, resource => 
+            new InsertValidator(resource, tblAlias, this.dc.getDatabase()).validate());
+        })
+        .then(() => {
+          return this.dc
+            .from(this.table.getName())
+            .where({'$eq': {[fqFKName]: `:${pPKAlias}`}}, parent)
+            .delete()
+            .execute();
+        })
+        .then(() => {
+          return this.dc
+            .insert({[tblAlias]: resources})
+            .execute();
+        })
+        .then(resources => resources[tblAlias]);
+    }
+
     // <<public>>
 
     /**
      * Retrieve an array of resources.
+     * @memberOf GenericDao
      * @param where An optional where condition.
      * @param params Query parameters for the where condition.
      * @returns A promise that is resolved with the results as an array.
@@ -182,6 +234,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Retrieve a single resource as an object.
+     * @memberOf GenericDao
      * @param where An optional where condition.
      * @param params Query parameters for the where condition.
      * @param onNotFound An optional function that produces an error when
@@ -196,6 +249,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Retrieve a single resource by ID.  Specialized version of retrieveSingle.
+     * @memberOf GenericDao
      * @param id The unique identifier of the resource.
      */
     retrieveByID(id) {
@@ -205,6 +259,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
     /**
      * Helper function to check that something is unique.  This is useful
      * before creating or updating a record.
+     * @memberOf GenericDao
      * @param where A where condition (how to find the record).
      * @param params Query parameters for the where condition.
      * @param onDupe An option function that is called when a duplicate is
@@ -223,6 +278,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
      * Create a resource if a condition resolves successfully.  Note
      * that prior to invoking the condition the resource is validated
      * using an InsertValidator.
+     * @memberOf GenericDao
      * @param resource A model to create.
      * @param condition A function that returns a promise.  If the promise
      *        is resolved then the model is created.  resource is passed
@@ -241,6 +297,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
     /**
      * Generic create method that validates a model using an InsertValidator
      * and then inserts the model.
+     * @memberOf GenericDao
      * @param resource A model to create.
      */
     create(resource) {
@@ -251,6 +308,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
      * Update a resource if a condition resolves successfully.  Note
      * that prior to invoking the condition the resource is validated
      * using an UpdateValidator.
+     * @memberOf GenericDao
      * @param resource A model to update by ID.
      * @param condition A function that returns a promise.  If the promise
      *        is resolved then the model is created.  resource is passed
@@ -268,6 +326,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
     /**
      * Generic update method that validates a model using an UpdateValidator
      * and then updates it by ID.
+     * @memberOf GenericDao
      * @param resource A model to update by ID.
      */
     update(resource) {
@@ -277,10 +336,23 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
     /**
      * Generic delete method that validates a model using a DeleteValidator
      * and then deletes it by ID.
+     * @memberOf GenericDao
      * @param resource A model to delete by ID.
      */
     delete(resource) {
       return this._delete(resource);
+    }
+
+    /**
+     * Replace (remove and recreate) all the resources associated with a parent
+     * table.
+     * @memberOf GenericDao
+     * @param {string} parentTableName The name of the parent table.
+     * @param {any} parentID The identifier of the parent resource.
+     * @param {resources} An array of resources, which will be created.
+     */
+    replace(parentTableName, parentID, resources) {
+      return this._replace(parentTableName, parentID, resources);
     }
   }
 

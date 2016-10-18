@@ -70,6 +70,68 @@
         }
       ],
       "alias": "usersCourses"
+    },
+    {
+      "name": "Users",
+      "columns": [
+        {
+          "name": "createdOn",
+          "dataType": "timestamp",
+          "columnType": "timestamp",
+          "isNullable": false,
+          "maxLength": null,
+          "isPrimary": false,
+          "defaultValue": "CURRENT_TIMESTAMP",
+          "converter": {}
+        },
+        {
+          "name": "email",
+          "dataType": "varchar",
+          "columnType": "varchar(1000)",
+          "isNullable": false,
+          "maxLength": 1000,
+          "isPrimary": false,
+          "defaultValue": null
+        },
+        {
+          "name": "extUserID",
+          "dataType": "varchar",
+          "columnType": "varchar(255)",
+          "isNullable": false,
+          "maxLength": 255,
+          "isPrimary": false,
+          "defaultValue": null
+        },
+        {
+          "name": "lastLogin",
+          "dataType": "timestamp",
+          "columnType": "timestamp",
+          "isNullable": false,
+          "maxLength": null,
+          "isPrimary": false,
+          "defaultValue": "CURRENT_TIMESTAMP",
+          "converter": {}
+        },
+        {
+          "name": "name",
+          "dataType": "varchar",
+          "columnType": "varchar(1000)",
+          "isNullable": true,
+          "maxLength": 1000,
+          "isPrimary": false,
+          "defaultValue": null
+        },
+        {
+          "name": "userID",
+          "dataType": "int",
+          "columnType": "int(11)",
+          "isNullable": false,
+          "maxLength": null,
+          "isPrimary": true,
+          "defaultValue": null
+        }
+      ],
+      "alias": "users"
     }
   ]
 }

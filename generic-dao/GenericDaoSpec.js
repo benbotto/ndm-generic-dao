@@ -19,7 +19,7 @@ describe('GenericDao test suite.', function() {
     // Mock a connection pool object, and give it to a DataContext.
     pool = jasmine.createSpyObj('pool', ['query']);
     db.dataContext = new ndm.MySQLDataContext(database, pool);
-    db.then = (callback) => callback(db.dataContext);
+    db.then = callback => callback(db.dataContext);
     insulin.factory('db', () => db);
 
     // Now that the db is mocked, get a reference to the DAO.
@@ -308,7 +308,8 @@ describe('GenericDao test suite.', function() {
     it('checks that an invalid resource is rejected with a ValidationErrorList.', function() {
       const course = {userID: 'asdf'};
 
-      dao.delete(course)
+      dao
+        .delete(course)
         .then(() => expect(true).toBe(false))
         .catch(function(err) {
           // ID required on delete.
@@ -328,6 +329,131 @@ describe('GenericDao test suite.', function() {
           expect(err.name).toBe('NotFoundError');
           expect(err.message).toBe('Resource not found.');
         });
+    });
+  });
+
+  /**
+   * Replace.
+   */
+  describe('replace test suite.', function() {
+    it('checks that the parentID is validated.', function() {
+      dao
+        .replace('Users', 'asdf')
+        .then(() => expect(true).toBe(false))
+        .catch(errList => {
+          expect(errList.errors.length).toBe(1);
+          expect(errList.errors[0].message).toBe('userID is not a valid integer.');
+        });
+    });
+
+    it('checks that the parent ID is set on each resource.', function() {
+      const courses = [
+        {name: 'Shady Oaks', userID: 1}, {name: 'Rocklin', userID: 2}
+      ];
+
+      dao
+        .replace('Users', 42, courses)
+        .then(() => courses.forEach(c => expect(c.userID).toBe(42)))
+        .catch(() => expect(true).toBe(false));
+    });
+
+    it('checks that each resource is validated.', function() {
+      const courses = [
+        {name: 'Shady Oaks'}, {}, {name: ''}
+      ];
+
+      dao
+        .replace('Users', 42, courses)
+        .then(() => expect(true).toBe(false))
+        .catch(errList => {
+          expect(errList.errors.length).toBe(1);
+          expect(errList.errors[0].message).toBe('name is required.');
+        });
+    });
+
+    describe('query tests.', function() {
+      beforeEach(function() {
+        let callCount = 0;
+
+        pool.query.and.callFake(function(query, callback) {
+          if (++callCount === 1) {
+            callback(null, {affectedRows: 1});
+          }
+          else {
+            callback(null, {insertId: callCount});
+          }
+        });
+      });
+
+      it('checks that the resources are deleted.', function() {
+        const courses   = [];
+
+        pool.query.and.callFake(function(query, callback) {
+          expect(query).toBe(
+            'DELETE  `usersCourses`\n' +
+            'FROM    `UsersCourses` AS `usersCourses`\n' +
+            'WHERE   `usersCourses`.`userID` = 42'
+          );
+          callback(null, {affectedRows: 1});
+        });
+
+        dao
+          .replace('Users', 42, courses)
+          .catch(() => expect(true).toBe(false));
+      });
+
+      it('checks that the new resources are inserted.', function() {
+        let   callCount = 0;
+        const courses   = [
+          {name: 'Shady Oaks'}
+        ];
+
+        pool.query.and.callFake(function(query, callback) {
+          if (++callCount === 1) {
+            callback(null, {affectedRows: 1});
+          }
+          else {
+            expect(query).toBe(
+              'INSERT INTO `UsersCourses` (`name`, `userID`)\n' +
+              'VALUES (\'Shady Oaks\', 42)'
+            );
+            callback(null, {insertId: callCount});
+          }
+        });
+
+        dao
+          .replace('Users', 42, courses)
+          .catch(() => expect(true).toBe(false))
+          .done();
+      });
+
+      it('checks that primary keys are updated.', function() {
+        const courses = [
+          {userCourseID: 10, name: 'Shady Oaks'},
+          {name: 'Rocklin'},
+          {userCourseID: 12, name: 'Mackey'}
+        ];
+
+        dao
+          .replace('Users', 42, courses)
+          .then(() => {
+            expect(courses[0].userCourseID).toBe(2);
+            expect(courses[1].userCourseID).toBe(3);
+            expect(courses[2].userCourseID).toBe(4);
+          })
+          .catch(() => expect(true).toBe(false));
+      });
+
+      it('checks that the courses are returned.', function() {
+        const courses = [
+          {name: 'Shady Oaks'}
+        ];
+
+        dao
+          .replace('Users', 42, courses)
+          .then(c => expect(c).toBe(courses))
+          .catch(() => expect(true).toBe(false));
+      });
     });
   });
 });
