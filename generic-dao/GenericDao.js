@@ -1,9 +1,9 @@
 'use strict';
 
-require('insulin').factory('GenericDao', GenericDaoProducer);
+require('insulin').factory('ndm_GenericDao', GenericDaoProducer);
 
 function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValidator,
-  UpdateValidator, ModelValidator, DeleteValidator) {
+  UpdateValidator, DeleteValidator) {
   /**
    * Generic data-access object for simple CRUD operations.
    */
@@ -11,41 +11,37 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
     /**
      * Initialize the DAO.  Note that the db is expected to be connected
      * before any of this class's methods are used.
-     * @param dataContext A DataContext instance that is used to run queries.
-     * @param tableName The name of the table that this DAO operates on.
+     * @param {DataContext} dataContext - A DataContext instance that is used
+     * to run queries.
+     * @param {string} tableName - The name of the table that this DAO operates on.
      */
     constructor(dataContext, tableName) {
       this.dc    = dataContext;
-      this.table = this.dc.getDatabase().getTableByName(tableName);
+      this.table = this.dc.database.getTableByName(tableName);
     }
 
     // <<private>>
 
     /**
      * Private implementation details for retrieve.
-     * @param where See retrieve().
-     * @param params See retrieve().
+     * @see retrieve
      */
-    _retrieve(where, params) {
-      const tblAlias = this.table.getAlias();
-      const query    = this.dc.from(this.table.getName());
-
-      params = params || {};
+    _retrieve(where, params={}) {
+      const tblMapping = this.table.mapTo;
+      const query      = this.dc.from(this.table.name);
 
       if (where)
         query.where(where, params);
 
-      return new ModelValidator(params, tblAlias, this.dc.getDatabase())
-        .validate()
-        .then(() => query.select().execute())
-        .then(res => res[tblAlias]);
+      return query
+        .select()
+        .execute()
+        .then(res => res[tblMapping]);
     }
 
     /**
      * Private implementation details for retrieveSingle.
-     * @param where See retrieveSingle().
-     * @param params See retrieveSingle().
-     * @param onNotFound See retrieveSingle().
+     * @see retrieveSingle
      */
     _retrieveSingle(where, params, onNotFound) {
       return this
@@ -65,11 +61,11 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Private implementation details for retrieveByID.
-     * @param id See retrieveByID().
+     * @see retrieveByID
      */
     _retrieveByID(id) {
-      const pkName     = this.table.getPrimaryKey()[0].getName();
-      const fqcn       = `${this.table.getAlias()}.${pkName}`;
+      const pkName     = this.table.primaryKey[0].name;
+      const fqcn       = `${this.table.mapTo}.${pkName}`;
       const where      = {$eq: {[fqcn]: `:${pkName}`}};
       const params     = {[pkName]: id};
       const onNotFound = () => new NotFoundError(`Invalid ${pkName}.`);
@@ -79,9 +75,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Private implementation details for isUnique.
-     * @param where See isUnique().
-     * @param params See isUnique(). 
-     * @param onDupe See isUnique(). 
+     * @see isUnique
      */
     _isUnique(where, params, onDupe) {
       return this
@@ -91,9 +85,9 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
             return deferred.resolve(true);
 
           // This is the id of the duplicate record.
-          const pkName = this.table.getPrimaryKey()[0].getName();
-          const id     = dupe[0][pkName];
-          const err    = new DuplicateError('Duplicate resource.', null, id);
+          const pkMapping = this.table.primaryKey[0].mapTo;
+          const id        = dupe[0][pkMapping];
+          const err       = new DuplicateError('Duplicate resource.', null, id);
 
           if (onDupe)
             return deferred.reject(onDupe(err));
@@ -103,16 +97,15 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Private implementation details for createIf.
-     * @param resource See createIf().
-     * @param condition See createIf().
+     * @see createIf
      */
     _createIf(resource, condition) {
-      const tblAlias = this.table.getAlias();
+      const tblMapping = this.table.mapTo;
 
-      return new InsertValidator(resource, tblAlias, this.dc.getDatabase())
+      return new InsertValidator(resource, tblMapping, this.dc.database)
         .validate()
         .then(() => condition(resource))
-        .then(() => this.dc.insert({[tblAlias]: resource}).execute())
+        .then(() => this.dc.insert({[tblMapping]: resource}).execute())
         .then(() => resource);
     }
 
@@ -131,12 +124,12 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
      * @param condition See updateIf().
      */
     _updateIf(resource, condition) {
-      const tblAlias = this.table.getAlias();
+      const tblMapping = this.table.mapTo;
 
-      return new UpdateValidator(resource, tblAlias, this.dc.getDatabase())
+      return new UpdateValidator(resource, tblMapping, this.dc.database)
         .validate()
         .then(() => condition(resource))
-        .then(() => this.dc.update({[tblAlias]: resource}).execute())
+        .then(() => this.dc.update({[tblMapping]: resource}).execute())
         .then(function(updRes) {
           return updRes.affectedRows === 1 ? resource : deferred.reject(
             new NotFoundError('Resource not found.'));
@@ -157,11 +150,11 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
      * @param resource See delete().
      */
     _delete(resource) {
-      const tblAlias = this.table.getAlias();
+      const tblMapping = this.table.mapTo;
 
-      return new DeleteValidator(resource, tblAlias, this.dc.getDatabase())
+      return new DeleteValidator(resource, tblMapping, this.dc.database)
         .validate()
-        .then(() => this.dc.delete({[tblAlias]: resource}).execute())
+        .then(() => this.dc.delete({[tblMapping]: resource}).execute())
         .then(function(delRes) {
           return delRes.affectedRows === 1 ? resource : deferred.reject(
             new NotFoundError('Resource not found.'));
@@ -175,17 +168,17 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
      * @param resources See replace().
      */
     _replace(parentTableName, parentID, resources) {
-      const pTbl      = this.dc.getDatabase().getTableByName(parentTableName);
-      const pTblAlias = pTbl.getAlias();
-      const pPKName   = pTbl.getPrimaryKey()[0].getName();
-      const pPKAlias  = pTbl.getPrimaryKey()[0].getAlias();
-      const parent    = {[pPKAlias]: parentID};
+      const pTbl      = this.dc.database.getTableByName(parentTableName);
+      const pTblMapping = pTbl.mapTo;
+      const pPKName   = pTbl.primaryKey[0].name;
+      const pPKMapping  = pTbl.primaryKey[0].mapTo;
+      const parent    = {[pPKMapping]: parentID};
 
-      const tblAlias  = this.table.getAlias();
-      const pkAlias   = this.table.getPrimaryKey()[0].getAlias();
-      const fkName    = this.table.getColumnByName(pPKName).getName();
-      const fkAlias   = this.table.getColumnByName(pPKName).getAlias();
-      const fqFKName  = `${tblAlias}.${fkName}`;
+      const tblMapping  = this.table.mapTo;
+      const pkMapping   = this.table.primaryKey[0].mapTo;
+      const fkName    = this.table.getColumnByName(pPKName).name;
+      const fkMapping   = this.table.getColumnByName(pPKName).mapTo;
+      const fqFKName  = `${tblMapping}.${fkName}`;
 
       // 1) Validate the parentID.
       // 2) Set/overwrite the parentID on each resource, and remove any resouce
@@ -193,30 +186,30 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
       // 3) Validate each resource.
       // 4) Delete the old resources.
       // 5) Insert the new resources.
-      return new DeleteValidator(parent, pTblAlias, this.dc.getDatabase())
+      return new DeleteValidator(parent, pTblMapping, this.dc.database)
         .validate()
         .then(() => {
           resources.forEach(r => {
-            r[fkAlias] = parentID;
-            delete r[pkAlias];
+            r[fkMapping] = parentID;
+            delete r[pkMapping];
           });
 
           return deferred.map(resources, resource => 
-            new InsertValidator(resource, tblAlias, this.dc.getDatabase()).validate());
+            new InsertValidator(resource, tblMapping, this.dc.database).validate());
         })
         .then(() => {
           return this.dc
-            .from(this.table.getName())
-            .where({'$eq': {[fqFKName]: `:${pPKAlias}`}}, parent)
+            .from(this.table.name)
+            .where({'$eq': {[fqFKName]: `:${pPKMapping}`}}, parent)
             .delete()
             .execute();
         })
         .then(() => {
           return this.dc
-            .insert({[tblAlias]: resources})
+            .insert({[tblMapping]: resources})
             .execute();
         })
-        .then(resources => resources[tblAlias]);
+        .then(resources => resources[tblMapping]);
     }
 
     // <<public>>
@@ -224,9 +217,10 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
     /**
      * Retrieve an array of resources.
      * @memberOf GenericDao
-     * @param where An optional where condition.
-     * @param params Query parameters for the where condition.
-     * @returns A promise that is resolved with the results as an array.
+     * @param {Object} where - An optional where condition.
+     * @param {Object} params - Query parameters for the where condition.
+     * @returns {Promise<Object[]>} A promise that is resolved with the results
+     * as an array.
      */
     retrieve(where, params) {
       return this._retrieve(where, params);
