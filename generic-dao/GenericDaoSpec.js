@@ -206,7 +206,7 @@ describe('GenericDao()', function() {
   describe('.createIf()', function() {
     const goodUser = {first: 'Joe', last: 'Dimaggio'};
 
-    it('rejects invalid resource with a ValidationErrorList instance.', function() {
+    it('rejects invalid resources with a ValidationErrorList instance.', function() {
       const user = {};
 
       dao.createIf(user) // Condition not called.
@@ -333,9 +333,11 @@ describe('GenericDao()', function() {
   /**
    * Delete.
    */
-  xdescribe('delete test suite.', function() {
-    xit('checks that an invalid resource is rejected with a ValidationErrorList.', function() {
-      const user = {userID: 'asdf'};
+  describe('.delete()', function() {
+    const goodUser = {ID: 42};
+
+    it('rejects invalid resources with a ValidationErrorList instance.', function() {
+      const user = {};
 
       dao
         .delete(user)
@@ -343,18 +345,18 @@ describe('GenericDao()', function() {
         .catch(function(err) {
           // ID required on delete.
           expect(err.code).toBe('VAL_ERROR_LIST');
-          expect(err.errors[0].message).toBe('userID is required.');
+          expect(err.errors[0].message).toBe('ID is required.');
         });
     });
 
-    xit('checks that if the ID is invalid a 404 is returned.', function() {
-      const user = {userID: 3, name: 'Mackey'};
+    it('rejects with a NotFoundError instance if the resource is not found.', function() {
+      // No rows affected.
       pool.query.and.callFake((query, params, callback) => callback(null, {affectedRows: 0}));
 
       dao
-        .delete(user)
+        .delete(goodUser)
         .then(() => expect(true).toBe(false))
-        .catch((err) => {
+        .catch(function(err) {
           expect(err.name).toBe('NotFoundError');
           expect(err.message).toBe('Resource not found.');
         });
