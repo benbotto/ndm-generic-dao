@@ -8,13 +8,13 @@ const insulin = require('insulin');
 // instance of each.  New files are automagically picked up and exported, and
 // consumers can choose whether or not to use insulin.
 
-let files = require('./bootstrap');
-let exp   = {};
+const files = require('./bootstrap');
+const exp   = {};
 
 files.forEach(f => {
   // Remove the everything up to the final "/" and the ".js" extension.
-  let name = f.replace(/^.*\/([^\/]+)\.js$/, '$1');
-  exp[name] = insulin.get(name);
+  const name = f.replace(/^.*\/([^\/]+)\.js$/, '$1');
+  exp[name]  = insulin.get(`ndm_${name}`);
 });
 
 module.exports = exp;

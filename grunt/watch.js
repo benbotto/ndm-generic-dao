@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = function(grunt, scripts) {
-  let watch = {
+  const watch = {
     test: {
       options: {
         atBegin: true
