@@ -242,17 +242,17 @@ describe('GenericDao()', function() {
    * Create.
    */
   describe('.create()', function() {
-    it('is the same as createIf() with a no-op condition.', function() {
-      const user = {first: 'Joe', last: 'Dimmagio'};
+    const goodUser = {first: 'Joe', last: 'Dimaggio'};
 
+    it('is the same as createIf() with a no-op condition.', function() {
       spyOn(dao, '_createIf').and.callFake(function(resource, condition) {
-        expect(resource).toBe(user);
+        expect(resource).toBe(goodUser);
         condition()
           .then(() => expect(true).toBe(true))
           .catch(() => expect(true).toBe(false));
       });
 
-      dao.create(user);
+      dao.create(goodUser);
       expect(dao._createIf).toHaveBeenCalled();
     });
   });
@@ -260,60 +260,73 @@ describe('GenericDao()', function() {
   /**
    * Update if.
    */
-  xdescribe('updateIf test suite.', function() {
-    xit('checks that an invalid resource is rejected with a ValidationErrorList.', function() {
-      const user = {userID: 3, name: 'Makey'};
-      dao.updateIf(user)
+  describe('.updateIf()', function() {
+    const goodUser = {ID: 42, first: 'Joe', last: 'Dimaggio'};
+
+    it('rejects invalid resources with a ValidationErrorList instance.', function() {
+      const user = {};
+
+      dao.updateIf(user) // cond not called.
         .then(() => expect(true).toBe(false))
         .catch(function(err) {
           // ID required on update.
           expect(err.code).toBe('VAL_ERROR_LIST');
-          expect(err.errors[0].message).toBe('userID is required.');
+          expect(err.errors[0].message).toBe('ID is required.');
         });
     });
 
-    xit('checks that if the condition is not met the result is chainable.', function() {
-      const user = {userID: 3, name: 'Mackey'};
-      const cond   = () => deferred.reject(new Error('FAKE ERROR!'));
-      dao.updateIf(user, cond)
+    it('rejects with the condition\'s rejection (chained) if the condition is not met.',
+      function() {
+      const cond = () => deferred.reject(new Error('FAKE ERROR!'));
+
+      dao.updateIf(goodUser, cond)
         .then(() => expect(true).toBe(false))
         .catch(err => expect(err.message).toBe('FAKE ERROR!'));
     });
 
-    xit('checks that if the condition is met the resource is updated.', function() {
-      const user = {userID: 3, name: 'Mackey'};
-      const cond   = () => deferred.resolve(true);
+    it('updates the user if the condition is met.', function() {
+      const cond = () => deferred.resolve(true);
+
       pool.query.and.callFake((query, params, callback) => callback(null, {affectedRows: 1}));
+
       dao
-        .updateIf(user, cond)
-        .then(c => expect(c).toBe(user))
+        .updateIf(goodUser, cond)
+        .then(c => expect(c).toBe(goodUser))
         .catch(() => expect(true).toBe(false));
     });
 
-    xit('checks that if the ID is invalid a 404 is returned.', function() {
-      const user = {userID: 3, name: 'Mackey'};
-      const cond   = () => deferred.resolve(true);
+    it('rejects with a NotFoundError instance if the resource is not found.', function() {
+      const cond = () => deferred.resolve(true);
+
+      // No rows affected.
       pool.query.and.callFake((query, params, callback) => callback(null, {affectedRows: 0}));
+
       dao
-        .updateIf(user, cond)
+        .updateIf(goodUser, cond)
         .then(() => expect(true).toBe(false))
         .catch((err) => {
           expect(err.name).toBe('NotFoundError');
           expect(err.message).toBe('Resource not found.');
         });
     });
+  });
 
-    xit('checks the update method which uses a no-op condition.', function() {
-      const user = {userID: 3, name: 'Mackey'};
+  /**
+   * Update.
+   */
+  describe('.update()', function() {
+    const goodUser = {ID: 42, first: 'Joe', last: 'Dimaggio'};
 
-      spyOn(dao, 'updateIf').and.callFake(function(resource, condition) {
-        expect(resource).toBe(user);
+    it('is the sames as updateIf() with a no-op condition.', function() {
+      spyOn(dao, '_updateIf').and.callFake(function(resource, condition) {
+        expect(resource).toBe(goodUser);
         condition()
           .then(() => expect(true).toBe(true))
           .catch(() => expect(true).toBe(false));
       });
 
-      dao.update(user);
+      dao.update(goodUser);
+      expect(dao._updateIf).toHaveBeenCalled();
     });
   });
 

@@ -120,8 +120,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Private implementation details for updateIf.
-     * @param resource See updateIf().
-     * @param condition See updateIf().
+     * @see updateIf
      */
     _updateIf(resource, condition) {
       const tblMapping = this.table.mapTo;
