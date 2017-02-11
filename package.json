@@ -17,16 +17,17 @@
   },
   "dependencies": {
     "bsy-error": "^1.0.3",
-    "bsy-validation": "^1.0.0",
+    "bsy-validation": "^1.1.0",
     "deferred": "^0.7.5",
     "glob": "^7.0.6",
     "insulin": "^1.0.7",
-    "node-data-mapper": "^1.0.18"
+    "node-data-mapper": "^1.1.18"
   },
   "devDependencies": {
     "grunt": "^1.0.1",
     "grunt-contrib-jshint": "^1.0.0",
     "grunt-contrib-watch": "^1.0.0",
-    "grunt-jasmine-nodejs": "^1.5.4"
+    "grunt-jasmine-nodejs": "^1.5.4",
+    "node-data-mapper-mysql": "^1.1.18"
   }
 }
