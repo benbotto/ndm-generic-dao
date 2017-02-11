@@ -13,15 +13,21 @@ function ndm_testDBSchemaProducer(booleanConverter) {
           {
             name: 'userID',
             mapTo: 'ID',
-            isPrimary: true
+            isPrimary: true,
+            dataType: 'int',
+            isNullable: false
           },
           {
             name: 'firstName',
-            mapTo: 'first'
+            mapTo: 'first',
+            dataType: 'varchar',
+            isNullable: false
           },
           {
             name: 'lastName',
-            mapTo: 'last'
+            mapTo: 'last',
+            dataType: 'varchar',
+            isNullable: false
           }
         ]
       },
@@ -32,16 +38,25 @@ function ndm_testDBSchemaProducer(booleanConverter) {
           {
             name: 'phoneNumberID',
             mapTo: 'ID',
-            isPrimary: true
+            isPrimary: true,
+            dataType: 'int',
+            isNullable: false
           },
           {
-            name: 'userID'
+            name: 'userID',
+            mapTo: 'uID',
+            dataType: 'int',
+            isNullable: false
           },
           {
-            name: 'phoneNumber'
+            name: 'phoneNumber',
+            dataType: 'varchar',
+            isNullable: false
           },
           {
-            name: 'type'
+            name: 'type',
+            dataType: 'varchar',
+            isNullable: true
           }
         ],
         foreignKeys: [
