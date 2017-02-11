@@ -1,16 +1,16 @@
-'use strict';
-
 module.exports = function(grunt) {
-  const VERBOSE = false;
+  'use strict';
 
-  let scripts = (require('./grunt/scriptGarner.js'))(VERBOSE);
+  const VERBOSE = false;
+  const scripts = (require('./grunt/scriptGarner.js'))(VERBOSE);
 
   grunt.initConfig({
     jshint:         require('./grunt/jshint')(grunt, scripts),
     jasmine_nodejs: require('./grunt/jasmine-nodejs')(grunt, scripts),
-    watch:          require('./grunt/watch')(grunt, scripts)
+    watch:          require('./grunt/watch')(grunt, scripts),
+    jsdoc:          require('./grunt/jsdoc')(grunt, scripts)
   });
 
-  grunt.registerTask('default', ['jshint', 'jasmine_nodejs']);
+  grunt.registerTask('default', ['jshint', 'jasmine_nodejs', 'jsdoc']);
 };
 
