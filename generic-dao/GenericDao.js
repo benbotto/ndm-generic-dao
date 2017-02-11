@@ -3,7 +3,7 @@
 require('insulin').factory('ndm_GenericDao', GenericDaoProducer);
 
 function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValidator,
-  UpdateValidator, DeleteValidator) {
+  UpdateValidator, DeleteValidator, ndm_Column, ndm_assert) {
   /**
    * Generic data-access object for simple CRUD operations.
    */
@@ -24,6 +24,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Private implementation details for retrieve.
+     * @private
      * @see retrieve
      */
     _retrieve(where, params={}) {
@@ -41,6 +42,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Private implementation details for retrieveSingle.
+     * @private
      * @see retrieveSingle
      */
     _retrieveSingle(where, params, onNotFound) {
@@ -61,6 +63,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Private implementation details for retrieveByID.
+     * @private
      * @see retrieveByID
      */
     _retrieveByID(id) {
@@ -75,6 +78,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Private implementation details for isUnique.
+     * @private
      * @see isUnique
      */
     _isUnique(where, params, onDupe) {
@@ -97,6 +101,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Private implementation details for createIf.
+     * @private
      * @see createIf
      */
     _createIf(resource, condition) {
@@ -111,6 +116,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Private implementation details for create().
+     * @private
      * @param resource See create().
      */
     _create(resource) {
@@ -120,6 +126,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Private implementation details for updateIf.
+     * @private
      * @see updateIf
      */
     _updateIf(resource, condition) {
@@ -137,6 +144,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Private implementation details for update().
+     * @private
      * @param resource See update().
      */
     _update(resource) {
@@ -146,7 +154,8 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Private implementation details for delete().
-     * @param resource See delete().
+     * @private
+     * @see delete
      */
     _delete(resource) {
       const tblMapping = this.table.mapTo;
@@ -162,22 +171,30 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Private implementation details for replace().
-     * @param parentTableName See replace().
-     * @param parentID See replace().
-     * @param resources See replace().
+     * @private
+     * @see replace
      */
-    _replace(parentTableName, parentID, resources) {
-      const pTbl      = this.dc.database.getTableByName(parentTableName);
+    _replace(pTblName, pID, resources) {
+      const pTbl        = this.dc.database.getTableByName(pTblName);
       const pTblMapping = pTbl.mapTo;
-      const pPKName   = pTbl.primaryKey[0].name;
       const pPKMapping  = pTbl.primaryKey[0].mapTo;
-      const parent    = {[pPKMapping]: parentID};
+      const parent      = {[pPKMapping]: pID};
 
+      const tblName     = this.table.name;
       const tblMapping  = this.table.mapTo;
       const pkMapping   = this.table.primaryKey[0].mapTo;
-      const fkName    = this.table.getColumnByName(pPKName).name;
-      const fkMapping   = this.table.getColumnByName(pPKName).mapTo;
-      const fqFKName  = `${tblMapping}.${fkName}`;
+
+      const fks         = this.dc.database.relStore.getRelationships(tblName, pTblName, true);
+
+      let fkName, fkMapping, fqFKName;
+
+      ndm_assert(fks.length === 1,
+        'Replace can only be performed if there is exactly one relationship ' +
+        'between the parent and child tables.');
+
+      fkName    = fks[0].column;
+      fkMapping = this.table.getColumnByName(fkName).mapTo;
+      fqFKName  = ndm_Column.createFQColName(tblName, fkName);
 
       // 1) Validate the parentID.
       // 2) Set/overwrite the parentID on each resource, and remove any resouce
@@ -189,7 +206,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
         .validate()
         .then(() => {
           resources.forEach(r => {
-            r[fkMapping] = parentID;
+            r[fkMapping] = pID;
             delete r[pkMapping];
           });
 
@@ -214,8 +231,21 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
     // <<public>>
 
     /**
+     * @callback GenericDao~errorCallback
+     * @param {Error} err - An Error instance.
+     * @returns {Error} A promise that produces a customized Error
+     * instance.
+     */
+
+    /**
+     * @callback GenericDao~conditionCallback
+     * @param {Object} resource - The resource object.
+     * @returns {Promise<bool>} A promise that is resolved if the condition is
+     * met, or otherwise rejected.
+     */
+
+    /**
      * Retrieve an array of resources.
-     * @memberOf GenericDao
      * @param {Object} where - An optional where condition.
      * @param {Object} params - Query parameters for the where condition.
      * @returns {Promise<Object[]>} A promise that is resolved with the results
@@ -227,14 +257,13 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Retrieve a single resource as an object.
-     * @memberOf GenericDao
-     * @param where An optional where condition.
-     * @param params Query parameters for the where condition.
-     * @param onNotFound An optional function that produces an error when
-     *        a resource is not found.
-     * @returns A promise that is resolved with the first matching resource.
-     *          If there are no matches found, then the promise is rejected
-     *          with a NotFoundError instance.
+     * @param {Object} where - An optional where condition.
+     * @param {Object} params - Query parameters for the where condition.
+     * @param {GenericDao~errorCallback} onNotFound - An optional function that
+     * produces an Error when a resource is not found.
+     * @returns {Promise<Object>} A promise that is resolved with the first
+     * matching resource.  If there are no matches found, then the promise is
+     * rejected with a NotFoundError instance.
      */
     retrieveSingle(where, params, onNotFound) {
       return this._retrieveSingle(where, params, onNotFound);
@@ -242,8 +271,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Retrieve a single resource by ID.  Specialized version of retrieveSingle.
-     * @memberOf GenericDao
-     * @param id The unique identifier of the resource.
+     * @param {any} id - The unique identifier of the resource.
      */
     retrieveByID(id) {
       return this._retrieveByID(id);
@@ -252,16 +280,15 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
     /**
      * Helper function to check that something is unique.  This is useful
      * before creating or updating a record.
-     * @memberOf GenericDao
-     * @param where A where condition (how to find the record).
-     * @param params Query parameters for the where condition.
-     * @param onDupe An option function that is called when a duplicate is
-     *        found.  If the resource is not found and this function is
-     *        defined, the resource is rejected with the result of this
-     *        function.
-     * @returns A promise that is resolved if the resource is unique (that is,
-     *          if no records are found).  If the resource is not unique then
-     *          the promise is rejected with a DuplicateError instance.
+     * @param {Object} where - An optional where condition.
+     * @param {Object} params - Query parameters for the where condition.
+     * @param {GenericDao~errorCallback} onDupe - An option function that is
+     * called when a duplicate is found.  If the resource is not found and this
+     * function is defined, the resource is rejected with the result of this
+     * function.
+     * @returns {Promise<bool>} A promise that is resolved if the resource is
+     * unique (that is, if no records are found).  If the resource is not
+     * unique then the promise is rejected with a DuplicateError instance.
      */
     isUnique(where, params, onDupe) {
       return this._isUnique(where, params, onDupe);
@@ -271,17 +298,16 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
      * Create a resource if a condition resolves successfully.  Note
      * that prior to invoking the condition the resource is validated
      * using an InsertValidator.
-     * @memberOf GenericDao
-     * @param resource A model to create.
-     * @param condition A function that returns a promise.  If the promise
-     *        is resolved then the model is created.  resource is passed
-     *        to condition.
-     * @returns A promise that is:
-     *          1) Resolved with the model if the model is valid and the
-     *             condition is resolved.  The model will be updated with
-     *             the new ID if possible.
-     *          2) Rejected with a ValidationErrorList if the model is invalid.
-     *          3) Rejected with condition's promise if condition is rejected.
+     * @param {Object} resource - A model to create.
+     * @param {GenericDao~conditionCallback} condition - A function that
+     * returns a promise.  If the promise is resolved then the model is
+     * created.  resource is passed to condition.
+     * @returns {Promise<Object>} A promise that is:
+     * 1) Resolved with the model if the model is valid and the
+     *    condition is resolved.  The model will be updated with
+     *    the new ID if possible.
+     * 2) Rejected with a ValidationErrorList if the model is invalid.
+     * 3) Rejected with condition's promise if condition is rejected.
      */
     createIf(resource, condition) {
       return this._createIf(resource, condition);
@@ -290,8 +316,8 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
     /**
      * Generic create method that validates a model using an InsertValidator
      * and then inserts the model.
-     * @memberOf GenericDao
-     * @param resource A model to create.
+     * @param {Object} resource - A model to create.
+     * @returns {Promise<Object>} Same as {@link createIf}.
      */
     create(resource) {
       return this._create(resource);
@@ -301,16 +327,15 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
      * Update a resource if a condition resolves successfully.  Note
      * that prior to invoking the condition the resource is validated
      * using an UpdateValidator.
-     * @memberOf GenericDao
-     * @param resource A model to update by ID.
-     * @param condition A function that returns a promise.  If the promise
-     *        is resolved then the model is created.  resource is passed
-     *        to condition.
-     * @returns A promise that is:
-     *          1) Resolved with the model if the model is valid and the
-     *             condition is resolved.
-     *          2) Rejected with a ValidationErrorList if the model is invalid.
-     *          3) Rejected with condition's promise if condition is rejected.
+     * @param {Object} resource - A model to update by ID.
+     * @param {GenericDao~conditionCallback} condition - A function that
+     * returns a promise.  If the promise is resolved then the model is
+     * created.  resource is passed to condition.
+     * @returns {Promise<Object>} A promise that is:
+     * 1) Resolved with the model if the model is valid and the
+     *    condition is resolved.
+     * 2) Rejected with a ValidationErrorList if the model is invalid.
+     * 3) Rejected with condition's promise if condition is rejected.
      */
     updateIf(resource, condition) {
       return this._updateIf(resource, condition);
@@ -319,8 +344,8 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
     /**
      * Generic update method that validates a model using an UpdateValidator
      * and then updates it by ID.
-     * @memberOf GenericDao
-     * @param resource A model to update by ID.
+     * @param {Object} resource - A model to update by ID.
+     * @returns {Promise<Object>} Same as {@link updateIf}.
      */
     update(resource) {
       return this._update(resource);
@@ -329,8 +354,12 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
     /**
      * Generic delete method that validates a model using a DeleteValidator
      * and then deletes it by ID.
-     * @memberOf GenericDao
-     * @param resource A model to delete by ID.
+     * @param {Object} resource - A model to delete by ID.
+     * @returns {Promise<Object>} A promise that is:
+     * 1) Resolved with the model if the model is valid and deleted.
+     * 2) Rejected with a ValidationErrorList if the model is invalid.
+     * 3) Rejected with a NotFoundError instance if no records are affected
+     *    by the delete attempt.
      */
     delete(resource) {
       return this._delete(resource);
@@ -339,10 +368,14 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
     /**
      * Replace (remove and recreate) all the resources associated with a parent
      * table.
-     * @memberOf GenericDao
-     * @param {string} parentTableName The name of the parent table.
-     * @param {any} parentID The identifier of the parent resource.
-     * @param {resources} An array of resources, which will be created.
+     * @param {string} parentTableName - The name of the parent table.
+     * @param {any} parentID - The identifier of the parent resource.
+     * @param {Object[]} resources - An array of resources which will be
+     * created.
+     * @returns {Promise<Object[]>} The array of resources, each updated with
+     * their new identifier and parentID.  The parent and the resources are
+     * validated, so the returned promise shall be rejected if a validation
+     * error occurs.
      */
     replace(parentTableName, parentID, resources) {
       return this._replace(parentTableName, parentID, resources);

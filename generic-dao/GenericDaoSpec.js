@@ -366,43 +366,69 @@ describe('GenericDao()', function() {
   /**
    * Replace.
    */
-  xdescribe('replace test suite.', function() {
-    xit('checks that the parentID is validated.', function() {
+  describe('.replace()', function() {
+    let id;
+
+    // In these tests, phone_numbers is used, which is a child
+    // of users (each user has zero or more numbers).
+    beforeEach(function() {
+      dao = new GenericDao(dataContext, 'phone_numbers');
+
+      // Default action for pool; return a new ID each time.
+      id = 0;
+      pool.query.and.callFake((query, params, callback) => callback(null, {insertId: ++id}));
+    });
+
+    it('rejects with an error if the parentID is invalid.', function() {
       dao
-        .replace('Users', 'asdf')
+        .replace('users', 'asdf')
         .then(() => expect(true).toBe(false))
         .catch(errList => {
           expect(errList.errors.length).toBe(1);
-          expect(errList.errors[0].message).toBe('userID is not a valid integer.');
-        });
+          expect(errList.errors[0].message).toBe('ID is not a valid integer.');
+        })
+        .done();
     });
 
-    xit('checks that the parent ID is set on each resource.', function() {
-      const users = [
-        {name: 'Shady Oaks', userID: 1}, {name: 'Rocklin', userID: 2}
+    it('sets the parentID on each resource using the column\'s mapping, ' +
+      'and replaces the resource identifier on each resource.', function() {
+      const phones = [
+        {ID: 30, phoneNumber: '111-222-3333'},
+        {ID: 31, phoneNumber: '444-555-6666'}
       ];
 
       dao
-        .replace('Users', 42, users)
-        .then(() => users.forEach(c => expect(c.userID).toBe(42)))
+        .replace('users', 42, phones)
+        .then(() => {
+          // userID set using the mapping.
+          expect(phones[0].uID).toBe(42);
+          expect(phones[1].uID).toBe(42);
+
+          // ID replaced (note that the callback bumps the ID during the
+          // deletes, so the ID starts at 2 instead of 1.
+          expect(phones[0].ID).toBe(2);
+          expect(phones[1].ID).toBe(3);
+        })
         .catch(() => expect(true).toBe(false));
     });
 
-    xit('checks that each resource is validated.', function() {
-      const users = [
-        {name: 'Shady Oaks'}, {}, {name: ''}
-      ];
+    it('rejects with a ValidationErrorList if any resources are invalid.', function() {
+      // phoneNumber cannot be null.
+      const phones = [{}];
 
       dao
-        .replace('Users', 42, users)
+        .replace('users', 42, phones)
         .then(() => expect(true).toBe(false))
         .catch(errList => {
           expect(errList.errors.length).toBe(1);
-          expect(errList.errors[0].message).toBe('name is required.');
+          expect(errList.errors[0].message).toBe('phoneNumber is required.');
         });
     });
 
-    xdescribe('query tests.', function() {
+    /**
+     * Insert/delete tests for replace.
+     */
+    describe('query tests.', function() {
       beforeEach(function() {
         let callCount = 0;
 
@@ -416,74 +442,33 @@ describe('GenericDao()', function() {
         });
       });
 
-      xit('checks that the resources are deleted.', function() {
-        const users   = [];
-
-        pool.query.and.callFake(function(query, params, callback) {
-          expect(query).toBe(
-            'DELETE  `users`\n' +
-            'FROM    `users` AS `users`\n' +
-            'WHERE   `users`.`userID` = 42'
-          );
-          callback(null, {affectedRows: 1});
-        });
-
-        dao
-          .replace('Users', 42, users)
-          .catch(() => expect(true).toBe(false));
-      });
-
-      xit('checks that the new resources are inserted.', function() {
-        let   callCount = 0;
-        const users   = [
-          {name: 'Shady Oaks'}
+      it('deletes the resources, then inserts them (replace).', function() {
+        const phones = [
+          {phoneNumber: '111-222-3333'}
         ];
 
-        pool.query.and.callFake(function(query, params, callback) {
-          if (++callCount === 1) {
-            callback(null, {affectedRows: 1});
-          }
-          else {
-            expect(query).toBe(
-              'INSERT INTO `users` (`name`, `userID`)\n' +
-              'VALUES (\'Shady Oaks\', 42)'
-            );
-            callback(null, {insertId: callCount});
-          }
-        });
-
         dao
-          .replace('Users', 42, users)
+          .replace('users', 42, phones)
           .catch(() => expect(true).toBe(false))
           .done();
-      });
 
-      xit('checks that primary keys are updated.', function() {
-        const users = [
-          {userID: 10, name: 'Shady Oaks'},
-          {name: 'Rocklin'},
-          {userID: 12, name: 'Mackey'}
-        ];
+        // Delete.
+        expect(pool.query.calls.argsFor(0)[0]).toBe(
+          'DELETE  `phone_numbers`\n' +
+          'FROM    `phone_numbers` AS `phone_numbers`\n' +
+          'WHERE   `phone_numbers`.`userID` = :ID'
+        );
+        expect(pool.query.calls.argsFor(0)[1]).toEqual({ID: 42});
 
-        dao
-          .replace('Users', 42, users)
-          .then(() => {
-            expect(users[0].userID).toBe(2);
-            expect(users[1].userID).toBe(3);
-            expect(users[2].userID).toBe(4);
-          })
-          .catch(() => expect(true).toBe(false));
-      });
-
-      xit('checks that the users are returned.', function() {
-        const users = [
-          {name: 'Shady Oaks'}
-        ];
-
-        dao
-          .replace('Users', 42, users)
-          .then(c => expect(c).toBe(users))
-          .catch(() => expect(true).toBe(false));
+        // Insert.
+        expect(pool.query.calls.argsFor(1)[0]).toBe(
+          'INSERT INTO `phone_numbers` (`phoneNumber`, `userID`)\n' +
+          'VALUES (:phoneNumber, :uID)'
+        );
+        expect(pool.query.calls.argsFor(1)[1]).toEqual({
+          uID: 42,
+          phoneNumber: '111-222-3333'
+        });
       });
     });
   });
