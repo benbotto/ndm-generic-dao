@@ -11,6 +11,7 @@ insulin
   .factory('deferred', () => require('deferred'));
 
 // These auto-register with insulin.
+require('node-data-mapper');
 require('bsy-validation');
 require('bsy-error');
 
