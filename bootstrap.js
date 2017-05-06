@@ -8,7 +8,6 @@ const scripts = (require('./grunt/scriptGarner.js'))().app;
 
 // Static dependencies.
 insulin
-  .factory('mysql',    () => require('mysql'))
   .factory('deferred', () => require('deferred'));
 
 // These auto-register with insulin.
