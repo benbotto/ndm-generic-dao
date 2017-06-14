@@ -228,6 +228,52 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
         .then(resources => resources[tblMapping]);
     }
 
+    /**
+     * Get a description of the API (the schema and an example).
+     * @see options
+     */
+    _options() {
+      const desc = {};
+
+      desc.schema = JSON.parse(JSON.stringify(this.table));
+
+      // Remove private members.
+      for (let prop in desc.schema) {
+        if (prop[0] === '_') {
+          delete desc.schema[prop];
+        }
+      }
+
+      // Remove converters.
+      desc.schema.columns.forEach(col => delete col.converter);
+      desc.schema.primaryKey.forEach(col => delete col.converter);
+
+      // Add example usage with types.
+      desc.example = this.table.columns.reduce((acc, col) => {
+        let type = `{dataType=${col.dataType}}`;
+
+        if (col.maxLength !== undefined)
+          type += `{maxLength=${col.maxLength}}`;
+
+        if (col.isNullable)
+          type += '{optional}';
+
+        if (col.isPrimary)
+          type += '{primaryKey}';
+
+        if (col.defaultValue)
+          type += `{defaultValue=${col.defaultValue}}`;
+
+        acc[col.mapTo] = `<${type}>`;
+
+        return acc;
+      }, {});
+
+      // Althoug this method is synchronous, a promise is returned
+      // for consistency with the other methods.
+      return deferred(desc);
+    }
+
     // <<public>>
 
     /**
@@ -379,6 +425,16 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
      */
     replace(parentTableName, parentID, resources) {
       return this._replace(parentTableName, parentID, resources);
+    }
+
+    /**
+     * Get a description of the API (schema and example).
+     * @return {Promise<Object>} A promise that will be resolved with an object
+     * containing "schema" and "example" properties.  This object effectively
+     * documents the API.
+     */
+    options() {
+      return this._options();
     }
   }
 

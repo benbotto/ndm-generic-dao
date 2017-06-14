@@ -21,13 +21,15 @@ function ndm_testDBSchemaProducer(booleanConverter) {
             name: 'firstName',
             mapTo: 'first',
             dataType: 'varchar',
-            isNullable: false
+            isNullable: false,
+            maxLength: 255
           },
           {
             name: 'lastName',
             mapTo: 'last',
             dataType: 'varchar',
-            isNullable: false
+            isNullable: false,
+            maxLength: 255
           }
         ]
       },
@@ -75,17 +77,28 @@ function ndm_testDBSchemaProducer(booleanConverter) {
         columns: [
           {
             name: 'productID',
-            isPrimary: true
+            mapTo: 'ID',
+            isPrimary: true,
+            dataType: 'int',
+            isNullable: false
           },
           {
-            name: 'description'
+            name: 'description',
+            dataType: 'varchar',
+            maxLength: 255,
+            isNullable: false
           },
           {
             name: 'isActive',
+            dataType: 'bit',
+            defaultValue: 1,
+            isNullable: true,
             converter: booleanConverter
           },
           {
-            name: 'primaryPhotoID'
+            name: 'primaryPhotoID',
+            dataType: 'int',
+            isNullable: true
           }
         ],
         foreignKeys: [

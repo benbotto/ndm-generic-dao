@@ -472,5 +472,86 @@ describe('GenericDao()', function() {
       });
     });
   });
+
+  /**
+   * Options.
+   */
+  describe('.options()', function() {
+    it('removes private properties from the schema.', function() {
+      dao = new GenericDao(dataContext, 'products');
+
+      dao
+        .options()
+        .then(desc => {
+          expect(desc.schema._mapToLookup).not.toBeDefined();
+          expect(desc.schema._nameLookup).not.toBeDefined();
+        });
+    });
+
+    it('removes converters from the columns.', function() {
+      dao = new GenericDao(dataContext, 'products');
+
+      dao
+        .options()
+        .then(desc => {
+          desc.schema.columns.forEach(col => expect(col.converter).not.toBeDefined());
+          desc.schema.primaryKey.forEach(col => expect(col.converter).not.toBeDefined());
+        });
+    });
+
+    it('has the table name and mapTo.', function() {
+      dao = new GenericDao(dataContext, 'phone_numbers');
+
+      dao
+        .options()
+        .then(desc => {
+          expect(desc.schema.name).toBe('phone_numbers');
+          expect(desc.schema.mapTo).toBe('phoneNumbers');
+        });
+    });
+
+    it('has the column descriptions.', function() {
+      dao = new GenericDao(dataContext, 'users');
+
+      dao
+        .options()
+        .then(desc => {
+          expect(desc.schema.columns).toEqual([
+						{ name: 'userID',
+							mapTo: 'ID',
+							isPrimary: true,
+							dataType: 'int',
+							isNullable: false },
+						{ name: 'firstName',
+							mapTo: 'first',
+							dataType: 'varchar',
+							isNullable: false,
+							maxLength: 255,
+							isPrimary: false },
+						{ name: 'lastName',
+							mapTo: 'last',
+							dataType: 'varchar',
+							isNullable: false,
+							maxLength: 255,
+							isPrimary: false } 
+          ]);
+        });
+    });
+
+    it('provides a usage description with type information.', function() {
+      dao = new GenericDao(dataContext, 'products');
+
+      dao
+        .options()
+        .then(desc => {
+          expect(desc.example).toEqual({
+            ID             : '<{dataType=int}{primaryKey}>', // Uses the mapping.
+            description    : '<{dataType=varchar}{maxLength=255}>',
+            isActive       : '<{dataType=bit}{optional}{defaultValue=1}>',
+            primaryPhotoID : '<{dataType=int}{optional}>'
+          });
+        });
+    });
+  });
 });
 
