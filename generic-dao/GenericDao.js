@@ -230,6 +230,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
 
     /**
      * Get a description of the API (the schema and an example).
+     * @private
      * @see options
      */
     _options() {
