@@ -92,7 +92,7 @@ function ndm_testDBSchemaProducer(booleanConverter) {
             name: 'isActive',
             dataType: 'bit',
             defaultValue: 1,
-            isNullable: true,
+            isNullable: false,
             converter: booleanConverter
           },
           {

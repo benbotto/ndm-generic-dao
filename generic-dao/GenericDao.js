@@ -256,7 +256,7 @@ function GenericDaoProducer(deferred, NotFoundError, DuplicateError, InsertValid
         if (col.maxLength !== undefined)
           type += `{maxLength=${col.maxLength}}`;
 
-        if (col.isNullable)
+        if (col.isNullable || col.defaultValue)
           type += '{optional}';
 
         if (col.isPrimary)
